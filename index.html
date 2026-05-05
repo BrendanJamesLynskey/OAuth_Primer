@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OAuth — A Gentle Primer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/theme/black.min.css">
+<style>
+  :root {
+    --amber:  #f5a623;
+    --green:  #4ecb8d;
+    --purple: #a78bfa;
+    --blue:   #60a5fa;
+    --red:    #f87171;
+    --bg:     #0a0a0f;
+    --bg2:    #10101a;
+    --bg3:    #181824;
+    --border: #2a2a3a;
+    --text:   #e8e8f0;
+    --muted:  #8888a8;
+  }
+
+  .reveal-viewport { background: var(--bg); }
+  .reveal .slides section { background: transparent; }
+
+  .reveal { font-family: 'DM Sans', sans-serif; color: var(--text); }
+  .reveal h1, .reveal h2, .reveal h3 { font-family: 'Playfair Display', serif; font-weight: 700; }
+  .reveal h1 { font-size: 1.6em; color: var(--amber); line-height: 1.1; }
+  .reveal h2 { font-size: 1.1em; color: var(--amber); margin-bottom: .2em; }
+  .reveal h3 { font-size: .78em; color: var(--green); margin-bottom: .15em; }
+  .reveal p  { font-size: .56em; line-height: 1.45; color: var(--text); }
+  .reveal li { font-size: .54em; line-height: 1.45; margin-bottom: .1em; }
+  .reveal code { font-family: 'JetBrains Mono', monospace; font-size: .72em; }
+  .reveal pre  { box-shadow: none; background: var(--bg3); border: 1px solid var(--border);
+                 border-radius: 6px; padding: .3em .5em; margin: .25em 0; }
+  .reveal pre code { font-size: .52em; line-height: 1.35; background: transparent; color: #cdd6f4; }
+
+  .slide-hdr {
+    display: flex; align-items: center; gap: .4em;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: .2em; margin-bottom: .3em;
+  }
+  .slide-hdr .tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: .42em; font-weight: 500;
+    color: var(--bg); background: var(--amber);
+    padding: .1em .4em; border-radius: 3px;
+    letter-spacing: .04em;
+  }
+  .slide-hdr h2 { margin: 0; font-size: .95em; }
+
+  .cols   { display: grid; gap: .5em; }
+  .cols-2 { grid-template-columns: 1fr 1fr; }
+  .cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .cols-6040 { grid-template-columns: 6fr 4fr; }
+  .cols-4060 { grid-template-columns: 4fr 6fr; }
+
+  .card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 6px; padding: .35em .6em;
+  }
+  .card.amber { border-left: 3px solid var(--amber); }
+  .card.green { border-left: 3px solid var(--green); }
+  .card.purple{ border-left: 3px solid var(--purple); }
+  .card.blue  { border-left: 3px solid var(--blue); }
+  .card.red   { border-left: 3px solid var(--red); }
+  .card h3 { font-size: .64em; margin: 0 0 .12em; }
+  .card p  { font-size: .52em; margin: 0; color: #b8b8d0; }
+  .card ul { margin: 0; padding-left: 1em; }
+  .card li { font-size: .52em; color: #b8b8d0; margin-bottom: .02em; }
+
+  .reveal table { width: 100%; border-collapse: collapse; font-size: .5em; }
+  .reveal table th { background: var(--bg3); color: var(--amber); font-weight: 600;
+                     padding: .2em .4em; border: 1px solid var(--border); text-align: left; }
+  .reveal table td { padding: .18em .4em; border: 1px solid var(--border); color: #ccc; }
+  .reveal table tr:nth-child(even) td { background: #0e0e18; }
+
+  .a  { color: var(--amber); font-weight: 600; }
+  .g  { color: var(--green); font-weight: 600; }
+  .p  { color: var(--purple); font-weight: 600; }
+  .b  { color: var(--blue); font-weight: 600; }
+  .r  { color: var(--red); font-weight: 600; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  svg.diagram { display: block; margin: 0 auto; overflow: visible; }
+
+  .pill {
+    display: inline-block; font-family: 'JetBrains Mono', monospace;
+    font-size: .44em; padding: .08em .4em; border-radius: 99px;
+    border: 1px solid; margin: 0 .08em;
+  }
+  .pill.amber { color: var(--amber); border-color: var(--amber); }
+  .pill.green { color: var(--green); border-color: var(--green); }
+  .pill.purple{ color: var(--purple); border-color: var(--purple); }
+  .pill.blue  { color: var(--blue); border-color: var(--blue); }
+
+  .reveal .slide-footer { display: none; }
+  .title-slide h1 { font-size: 1.8em; }
+  .title-slide .subtitle {
+    font-size: .7em; color: var(--green); font-family: 'DM Sans', sans-serif;
+    font-weight: 300; letter-spacing: .04em; margin: .3em 0 .6em;
+  }
+  .title-slide .meta { font-size: .48em; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+  .ss-row {
+    display: flex; gap: .25em; align-items: center;
+    margin: .1em 0; font-size: .55em; font-family: 'JetBrains Mono', monospace;
+  }
+  .ss-node {
+    padding: .2em .55em; border-radius: 5px; font-size: .9em;
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text);
+  }
+  .ss-node.active { background: #1a2a1a; border-color: var(--green); color: var(--green); }
+  .ss-node.done   { background: #1a1a2a; border-color: var(--purple); color: var(--purple); }
+  .ss-arrow { color: var(--amber); }
+  .ss-label { font-size: .8em; color: var(--muted); margin-left: .3em; }
+
+  .reveal ul, .reveal ol { margin: .15em 0 .15em 1em; }
+.reveal .slides > section { display: flex !important; flex-direction: column !important; overflow-y: auto !important; align-items: stretch !important; justify-content: flex-start !important; }
+</style>
+</head>
+<body>
+<div class="reveal">
+<div class="slides">
+
+
+<!-- ═══════════════════════════════ SLIDE 01 — TITLE ═══════════════════════════════ -->
+<section class="title-slide" data-background-color="#0a0a0f">
+  <div style="text-align:left; max-width:820px; margin:0 auto; padding: 1em 0;">
+    <div style="font-family:'JetBrains Mono',monospace; font-size:.5em; color:var(--muted); margin-bottom:.4em; letter-spacing:.1em;">
+      TECHNICAL PRESENTATION &middot; PART 0 OF 2 &mdash; PRIMER
+    </div>
+    <h1>OAuth<br>A Gentle Primer</h1>
+    <div class="subtitle">The mental model — before the protocol details</div>
+    <div style="width:60px; height:3px; background:var(--amber); margin-bottom:1.4em;"></div>
+    <div style="display:flex; gap:1.2em; flex-wrap:wrap; margin-bottom:1em;">
+      <span class="pill amber">No RFCs</span>
+      <span class="pill green">No code</span>
+      <span class="pill purple">Just the vocabulary</span>
+      <span class="pill blue">~15 minutes</span>
+    </div>
+    <div class="ss-row" style="margin-top:0.6em;">
+      <span class="ss-node active">🔑 valet key</span>
+      <span class="ss-arrow">→</span>
+      <span class="ss-node active">⏱ time-bound</span>
+      <span class="ss-arrow">→</span>
+      <span class="ss-node active">🎯 scoped</span>
+      <span class="ss-arrow">→</span>
+      <span class="ss-node done">✋ revocable</span>
+    </div>
+    <p style="max-width:660px; color:#a0a0c0; font-size:.56em; line-height:1.5; margin-top:1em;">
+      A friendly walk-through of what OAuth <em>is</em>, what it <em>solves</em>, and the words you'll meet in Part 1 (the protocol) and Part 2 (MCP servers and the provider landscape).
+    </p>
+    <div class="meta" style="margin-top:1.4em;">
+      Picture &nbsp;·&nbsp; Vocabulary &nbsp;·&nbsp; Roadmap
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 02 — TOPICS ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">01</span>
+    <h2>Topics</h2>
+  </div>
+  <div class="cols cols-2">
+    <div>
+      <div class="card amber">
+        <h3 class="a">The picture</h3>
+        <ul>
+          <li>The valet-key analogy — three actors, one delegation</li>
+          <li>Authentication vs Authorisation — the most-confused pair</li>
+          <li>The password-sharing problem OAuth was invented to kill</li>
+          <li>"Sign in with Google" — what actually happens</li>
+        </ul>
+      </div>
+      <div class="card green" style="margin-top:0.5em;">
+        <h3 class="g">The vocabulary</h3>
+        <ul>
+          <li>Tokens — what they are and why they expire</li>
+          <li>Scopes — fine-grained permissions</li>
+          <li>The five universal steps of any OAuth flow</li>
+          <li>One-page glossary of every word you'll meet</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">Reality check</h3>
+        <ul>
+          <li>Three things OAuth is <em>not</em></li>
+          <li>Where you've already met OAuth without noticing</li>
+          <li>Why AI agents and MCP servers care about it now</li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.5em;">
+        <h3 class="b">Where to next</h3>
+        <ul>
+          <li>Self-check: three quick questions</li>
+          <li>One-page summary you can screenshot</li>
+          <li>Reading roadmap — Part 1 (the protocol) and Part 2 (MCP &amp; providers)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 03 — VALET KEY ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">02</span>
+    <h2>The Valet Key — One-Picture Mental Model</h2>
+  </div>
+  <p>Imagine you drive to a hotel. You hand the valet a <span class="a">special key</span> that <em>only</em> opens the doors and starts the engine — it doesn't open the boot, the glove box, or your house. You can take it back at any time. <span class="g">That is OAuth.</span></p>
+
+  <svg class="diagram" viewBox="0 0 940 240" width="900" height="240">
+    <!-- you -->
+    <rect x="20" y="80" width="170" height="80" rx="10" fill="#1a1a2a" stroke="#60a5fa" stroke-width="1.5"/>
+    <text x="105" y="115" text-anchor="middle" fill="#60a5fa" font-family="Playfair Display,serif" font-size="15" font-weight="700">You</text>
+    <text x="105" y="135" text-anchor="middle" fill="#ccc" font-family="JetBrains Mono,monospace" font-size="10">(the user)</text>
+
+    <!-- key -->
+    <text x="225" y="115" text-anchor="middle" fill="#f5a623" font-family="JetBrains Mono,monospace" font-size="11">issues a</text>
+    <text x="225" y="130" text-anchor="middle" fill="#f5a623" font-family="JetBrains Mono,monospace" font-size="11">limited key</text>
+    <line x1="190" y1="120" x2="370" y2="120" stroke="#f5a623" stroke-width="1.5" marker-end="url(#a03a)"/>
+
+    <!-- valet -->
+    <rect x="370" y="80" width="170" height="80" rx="10" fill="#1a1a2a" stroke="#f5a623" stroke-width="1.5"/>
+    <text x="455" y="115" text-anchor="middle" fill="#f5a623" font-family="Playfair Display,serif" font-size="15" font-weight="700">The Valet</text>
+    <text x="455" y="135" text-anchor="middle" fill="#ccc" font-family="JetBrains Mono,monospace" font-size="10">(an app, on your behalf)</text>
+
+    <!-- car -->
+    <text x="585" y="115" text-anchor="middle" fill="#4ecb8d" font-family="JetBrains Mono,monospace" font-size="11">drives</text>
+    <text x="585" y="130" text-anchor="middle" fill="#4ecb8d" font-family="JetBrains Mono,monospace" font-size="11">your car</text>
+    <line x1="540" y1="120" x2="720" y2="120" stroke="#4ecb8d" stroke-width="1.5" marker-end="url(#a03g)"/>
+
+    <rect x="720" y="80" width="200" height="80" rx="10" fill="#1a1a2a" stroke="#4ecb8d" stroke-width="1.5"/>
+    <text x="820" y="115" text-anchor="middle" fill="#4ecb8d" font-family="Playfair Display,serif" font-size="15" font-weight="700">Your Car</text>
+    <text x="820" y="135" text-anchor="middle" fill="#ccc" font-family="JetBrains Mono,monospace" font-size="10">(your data / account)</text>
+
+    <text x="465" y="200" text-anchor="middle" fill="#a78bfa" font-family="DM Sans,sans-serif" font-size="12">The valet never sees your <em>master</em> key (your password). They get a <em>limited</em> key (a <strong>token</strong>) which:</text>
+    <text x="465" y="220" text-anchor="middle" fill="#888" font-family="DM Sans,sans-serif" font-size="11">opens only what's needed (<em>scope</em>) · expires soon (<em>lifetime</em>) · can be taken back any time (<em>revocation</em>).</text>
+
+    <defs>
+      <marker id="a03a" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><path d="M0,0 L9,3.5 L0,7" fill="#f5a623"/></marker>
+      <marker id="a03g" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><path d="M0,0 L9,3.5 L0,7" fill="#4ecb8d"/></marker>
+    </defs>
+  </svg>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 04 — AUTHN VS AUTHZ ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">03</span>
+    <h2>The Most-Confused Pair — AuthN vs AuthZ</h2>
+  </div>
+
+  <div class="cols cols-2">
+    <div>
+      <div class="card blue">
+        <h3 class="b">Authentication (AuthN) — "<em>who are you?</em>"</h3>
+        <ul>
+          <li>Proving identity. Username + password. Passkey. Fingerprint. The login screen.</li>
+          <li>Output: a claim like <em>"this is alice@example.com"</em>.</li>
+          <li>Examples: logging into Gmail, unlocking your phone.</li>
+        </ul>
+      </div>
+      <div class="card amber" style="margin-top:0.4em;">
+        <h3 class="a">Authorisation (AuthZ) — "<em>what may you do?</em>"</h3>
+        <ul>
+          <li>Granting permission. Once we know who you are, what can you touch?</li>
+          <li>Output: a permission like <em>"may read photos, may not delete"</em>.</li>
+          <li>Examples: a shared Google Doc set to "comment-only"; an ATM letting you withdraw but not transfer.</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card green">
+        <h3 class="g">Where OAuth sits</h3>
+        <ul>
+          <li><span class="a">OAuth</span> is fundamentally an <span class="a">authorisation</span> framework — the valet key.</li>
+          <li>It assumes the user has already authenticated <em>somewhere</em>.</li>
+          <li>That "somewhere" is usually a separate trusted service — Google, Microsoft, your company's IdP.</li>
+          <li>OAuth then issues a token that <em>delegates</em> permission from the user to a third-party app.</li>
+        </ul>
+      </div>
+      <div class="card purple" style="margin-top:0.4em;">
+        <h3 class="p">"But I see 'Sign in with Google' all the time"</h3>
+        <p>That button uses <span class="a">OpenID Connect</span> — a small identity layer built <em>on top of</em> OAuth. It bundles "who you are" with "what you may do" into one round trip. We'll see it later.</p>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">Memorable rule</h3>
+        <p>"AuthN is the bouncer at the door. AuthZ is the wristband that says which rooms you can enter."</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 05 — THE PROBLEM ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">04</span>
+    <h2>Why OAuth Was Invented — The Password Problem</h2>
+  </div>
+  <p>Roll back to ~2006. You upload photos to Flickr. A new printing site, "PhotoPrint", offers to turn them into a calendar — <em>"just give us your Flickr password"</em>. People did. <span class="r">It was a disaster.</span></p>
+
+  <div class="cols cols-2" style="margin-top:0.4em;">
+    <div>
+      <div class="card red">
+        <h3 class="r">What was wrong with sharing the password</h3>
+        <ul>
+          <li>PhotoPrint now had <span class="r">total access</span> — read, delete, change settings.</li>
+          <li>Access was <span class="r">forever</span> — it lasted as long as the password did.</li>
+          <li>Revoking the app meant <span class="r">changing your Flickr password</span>, which broke every other integration too.</li>
+          <li>It trained users to <span class="r">type their password into anything that asked</span> — a phisher's dream.</li>
+          <li>If PhotoPrint got hacked, <span class="r">everybody's Flickr passwords leaked</span>.</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card green">
+        <h3 class="g">What OAuth gives you instead</h3>
+        <ul>
+          <li><span class="g">No password sharing</span> — PhotoPrint never sees your Flickr password.</li>
+          <li><span class="g">Scoped</span> access — "read photos", not "do anything".</li>
+          <li><span class="g">Expires</span> — typically minutes to an hour; renewable in the background.</li>
+          <li><span class="g">Per-app revocation</span> — disconnect PhotoPrint without rotating your password.</li>
+          <li><span class="g">Auditable</span> — Flickr knows it was PhotoPrint who read those photos at 14:07.</li>
+        </ul>
+      </div>
+      <div class="card amber" style="margin-top:0.4em;">
+        <h3 class="a">In one sentence</h3>
+        <p>"<em>App A wants to do thing R on user U's behalf at service S — without ever seeing U's password.</em>" Every part of OAuth exists to make that one sentence safe.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 06 — SIGN IN WITH GOOGLE ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">05</span>
+    <h2>"Sign in with Google" — What's Actually Happening</h2>
+  </div>
+  <p>You've done it a hundred times. Click the button on a website, end up on Google, click "Allow", land back on the site already logged in. Behind the scenes:</p>
+
+  <svg class="diagram" viewBox="0 0 940 290" width="900" height="290">
+    <!-- you -->
+    <rect x="20" y="20" width="140" height="38" rx="6" fill="#1a1a2a" stroke="#60a5fa" stroke-width="1.5"/>
+    <text x="90" y="44" text-anchor="middle" fill="#60a5fa" font-family="Playfair Display,serif" font-size="12" font-weight="700">You (browser)</text>
+    <!-- App -->
+    <rect x="240" y="20" width="160" height="38" rx="6" fill="#1a1a2a" stroke="#f5a623" stroke-width="1.5"/>
+    <text x="320" y="44" text-anchor="middle" fill="#f5a623" font-family="Playfair Display,serif" font-size="12" font-weight="700">"Cool New App"</text>
+    <!-- Google -->
+    <rect x="490" y="20" width="160" height="38" rx="6" fill="#1a1a2a" stroke="#a78bfa" stroke-width="1.5"/>
+    <text x="570" y="44" text-anchor="middle" fill="#a78bfa" font-family="Playfair Display,serif" font-size="12" font-weight="700">Google</text>
+
+    <line x1="90"  y1="58" x2="90"  y2="280" stroke="#2a2a3a" stroke-width="1" stroke-dasharray="3,3"/>
+    <line x1="320" y1="58" x2="320" y2="280" stroke="#2a2a3a" stroke-width="1" stroke-dasharray="3,3"/>
+    <line x1="570" y1="58" x2="570" y2="280" stroke="#2a2a3a" stroke-width="1" stroke-dasharray="3,3"/>
+
+    <line x1="90"  y1="78" x2="240" y2="78" stroke="#60a5fa" stroke-width="1.2" marker-end="url(#a05b)"/>
+    <text x="165" y="74" text-anchor="middle" fill="#60a5fa" font-family="JetBrains Mono,monospace" font-size="10">1. click "Sign in with Google"</text>
+
+    <line x1="240" y1="100" x2="90"  y2="100" stroke="#f5a623" stroke-width="1.2" marker-end="url(#a05a)"/>
+    <text x="165" y="96" text-anchor="middle" fill="#f5a623" font-family="JetBrains Mono,monospace" font-size="10">2. "go talk to Google"</text>
+
+    <line x1="90"  y1="125" x2="490" y2="125" stroke="#60a5fa" stroke-width="1.2" marker-end="url(#a05b)"/>
+    <text x="290" y="121" text-anchor="middle" fill="#60a5fa" font-family="JetBrains Mono,monospace" font-size="10">3. browser opens accounts.google.com</text>
+
+    <line x1="490" y1="150" x2="90"  y2="150" stroke="#a78bfa" stroke-width="1.2" marker-end="url(#a05p)"/>
+    <text x="290" y="146" text-anchor="middle" fill="#a78bfa" font-family="JetBrains Mono,monospace" font-size="10">4. Google: "log in (if not already)"</text>
+
+    <line x1="490" y1="175" x2="90"  y2="175" stroke="#a78bfa" stroke-width="1.2" marker-end="url(#a05p)"/>
+    <text x="290" y="171" text-anchor="middle" fill="#a78bfa" font-family="JetBrains Mono,monospace" font-size="10">5. Google: "Cool New App wants your name &amp; email — Allow?"</text>
+
+    <line x1="490" y1="200" x2="240" y2="200" stroke="#a78bfa" stroke-width="1.2" marker-end="url(#a05p)"/>
+    <text x="365" y="196" text-anchor="middle" fill="#a78bfa" font-family="JetBrains Mono,monospace" font-size="10">6. "here's a token + an ID about Alice"</text>
+
+    <line x1="240" y1="225" x2="90"  y2="225" stroke="#f5a623" stroke-width="1.2" marker-end="url(#a05a)"/>
+    <text x="165" y="221" text-anchor="middle" fill="#f5a623" font-family="JetBrains Mono,monospace" font-size="10">7. "welcome, Alice — you're in"</text>
+
+    <text x="465" y="265" text-anchor="middle" fill="#888" font-family="DM Sans,sans-serif" font-size="11">"Cool New App" never saw your Google password. It got an ID assertion (who) and a token (what it can do).</text>
+
+    <defs>
+      <marker id="a05b" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#60a5fa"/></marker>
+      <marker id="a05a" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#f5a623"/></marker>
+      <marker id="a05p" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#a78bfa"/></marker>
+    </defs>
+  </svg>
+
+  <p style="margin-top:.3em;">Step 5 — the consent screen — is the moment of delegation. Without it, OAuth would just be password-sharing with extra steps.</p>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 07 — FIVE STEPS ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">06</span>
+    <h2>The Five Universal Steps of Any OAuth Flow</h2>
+  </div>
+
+  <div class="ss-row" style="margin: 0.4em 0; flex-wrap:wrap;">
+    <span class="ss-node active">1. Ask</span>
+    <span class="ss-arrow">→</span>
+    <span class="ss-node active">2. Authenticate</span>
+    <span class="ss-arrow">→</span>
+    <span class="ss-node active">3. Consent</span>
+    <span class="ss-arrow">→</span>
+    <span class="ss-node done">4. Token</span>
+    <span class="ss-arrow">→</span>
+    <span class="ss-node done">5. Use</span>
+  </div>
+
+  <div class="cols cols-2" style="margin-top:0.4em;">
+    <div>
+      <div class="card amber">
+        <h3 class="a">1. Ask</h3>
+        <p>The app sends you to the auth server with a request: "<em>I'm app X, I want these permissions, send me back here when done.</em>"</p>
+      </div>
+      <div class="card green" style="margin-top:0.4em;">
+        <h3 class="g">2. Authenticate</h3>
+        <p>The auth server makes you log in (if you aren't already). Password, passkey, MFA — whatever the org's policy says. <span class="b">The app never sees this.</span></p>
+      </div>
+      <div class="card purple" style="margin-top:0.4em;">
+        <h3 class="p">3. Consent</h3>
+        <p>The auth server shows you what the app is asking for in plain language. You click <em>Allow</em> (or <em>Deny</em>).</p>
+      </div>
+    </div>
+    <div>
+      <div class="card blue">
+        <h3 class="b">4. Token</h3>
+        <p>The auth server hands the app a short-lived <span class="a">access token</span> — the valet key. (And usually a longer-lived <em>refresh token</em> to mint new access tokens later.)</p>
+      </div>
+      <div class="card amber" style="margin-top:0.4em;">
+        <h3 class="a">5. Use</h3>
+        <p>The app calls the resource's API, attaching the token. The resource verifies the token and serves the request.</p>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">Every OAuth flow</h3>
+        <p>Same five beats. The differences between flows are <em>where</em> each step happens — in a browser, on a server, on a TV — and how the token gets back to the app.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 08 — TOKENS ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">07</span>
+    <h2>Tokens — What They Are, Why They Expire</h2>
+  </div>
+  <p>A <span class="a">token</span> is just a string of characters that means "<em>the bearer of this is allowed to do X for the next Y minutes</em>". It's a digital wristband.</p>
+
+  <div class="cols cols-2" style="margin-top:0.4em;">
+    <div>
+      <div class="card amber">
+        <h3 class="a">Three kinds of token, three jobs</h3>
+        <ul>
+          <li><span class="g">Access token</span> — the wristband. Sent on every API call. <em>Short-lived</em> (often 5–60 min).</li>
+          <li><span class="g">Refresh token</span> — the spare wristband. Used <em>only</em> to ask the auth server for a new access token. Lives longer; never sent to the resource server.</li>
+          <li><span class="g">ID token</span> — a signed slip of paper saying <em>"this is Alice"</em>. Used for login, not for API calls.</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card green">
+        <h3 class="g">Why they expire</h3>
+        <ul>
+          <li>If a wristband leaks, the damage window is bounded by its lifetime.</li>
+          <li>Long-lived secrets get logged, screenshotted, pushed to GitHub. Short-lived ones do too — but they expire before the attacker can use them.</li>
+          <li>The refresh token is the only long-lived item, and it's protected by being usable only by the legitimate app talking to the auth server.</li>
+        </ul>
+      </div>
+      <div class="card purple" style="margin-top:0.4em;">
+        <h3 class="p">Bearer tokens</h3>
+        <p>Most tokens are <em>bearer</em> tokens — like cash. Whoever holds it can spend it. Modern OAuth has stronger options (DPoP, mTLS) that bind the token to the legitimate holder, but the default mental model is "treat it like cash".</p>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">Rule</h3>
+        <p>Never log a token. Never put one in a URL. Never email one. Treat them like passwords.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 09 — SCOPES ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">08</span>
+    <h2>Scopes — Fine-Grained Permissions</h2>
+  </div>
+  <p>A <span class="a">scope</span> is just a label that says "this token may do <em>this specific thing</em>". The auth server stamps the scopes onto the token; the resource server checks them on every call.</p>
+
+  <div class="cols cols-2" style="margin-top:0.4em;">
+    <div>
+      <div class="card amber">
+        <h3 class="a">Examples you've seen on consent screens</h3>
+        <ul>
+          <li><code>email</code> &middot; <code>profile</code> — your name and email</li>
+          <li><code>read photos</code> &middot; <code>upload photos</code></li>
+          <li><code>read your repositories</code> &middot; <code>create issues</code></li>
+          <li><code>send messages on your behalf</code></li>
+          <li><code>see your calendar</code> &middot; <code>add events to your calendar</code></li>
+        </ul>
+      </div>
+      <div class="card green" style="margin-top:0.4em;">
+        <h3 class="g">Why this matters</h3>
+        <p>Granular scopes let you say <em>"yes to read my photos, no to delete them"</em>. They also let the app be honest about what it actually needs — and let users walk away if it's asking for too much.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">"Why does this app need <em>those</em> permissions?"</h3>
+        <ul>
+          <li>If a flashlight app asks for your contacts — that's an OAuth-scope conversation.</li>
+          <li>The same instinct applies to any login-with-Google button or MCP server install screen.</li>
+        </ul>
+      </div>
+      <div class="card blue" style="margin-top:0.4em;">
+        <h3 class="b">Audience — a sister concept</h3>
+        <p>Scope says <em>what</em> the token can do; <span class="a">audience</span> says <em>which</em> service it can do it to. A token issued for "Slack" shouldn't be usable at "GitHub", even if both trust the same auth server. Audience is how OAuth keeps tokens from being laundered between APIs.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 10 — VOCABULARY ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">09</span>
+    <h2>One-Page Glossary</h2>
+  </div>
+
+  <table>
+    <thead><tr><th>Word</th><th>Plain meaning</th><th>The valet analogy</th></tr></thead>
+    <tbody>
+      <tr><td><span class="b">Resource Owner</span></td><td>The user (you).</td><td>The car owner.</td></tr>
+      <tr><td><span class="a">Client</span></td><td>The third-party app asking for access.</td><td>The valet.</td></tr>
+      <tr><td><span class="p">Authorization Server (AS)</span></td><td>The trusted service that authenticates you and issues tokens.</td><td>The hotel front desk that prints valet keys.</td></tr>
+      <tr><td><span class="g">Resource Server (RS)</span></td><td>The API or service holding your data.</td><td>The car.</td></tr>
+      <tr><td><span class="a">Scope</span></td><td>A specific permission attached to a token.</td><td>"May start engine; may not open boot."</td></tr>
+      <tr><td><span class="a">Audience</span></td><td>Which service the token is meant for.</td><td>"Key works at this hotel only."</td></tr>
+      <tr><td><span class="g">Access token</span></td><td>The credential the client sends to the resource server.</td><td>The valet key.</td></tr>
+      <tr><td><span class="g">Refresh token</span></td><td>A longer-lived credential used only to mint new access tokens.</td><td>The card you exchange at the desk for a fresh key.</td></tr>
+      <tr><td><span class="p">ID token</span></td><td>A signed statement saying "this is user U" (OpenID Connect).</td><td>The receipt with your name on it.</td></tr>
+      <tr><td><span class="b">Consent screen</span></td><td>The "App X wants to: …" dialog the AS shows you.</td><td>"Sir, the valet would like to start your engine — OK?"</td></tr>
+      <tr><td><span class="b">Grant / Flow</span></td><td>A specific recipe for getting a token (different recipes for browser, mobile, TV, server-to-server).</td><td>Different ways to hand over the key (in person, posted, on-screen code).</td></tr>
+      <tr><td><span class="b">PKCE</span></td><td>An extra secret only the legitimate app knows, sent at the end to prove it's the same app that started the flow. Pronounced "pixie".</td><td>A wristband stamp the valet must show to claim the key.</td></tr>
+      <tr><td><span class="b">OpenID Connect (OIDC)</span></td><td>A small identity layer on top of OAuth — adds the ID token.</td><td>OAuth + the receipt with your name on it.</td></tr>
+      <tr><td><span class="b">Bearer token</span></td><td>A token where "whoever holds it can use it" — like cash.</td><td>A valet key anyone could pick up and use.</td></tr>
+      <tr><td><span class="b">DPoP / mTLS</span></td><td>Ways to bind a token to the legitimate holder, so a stolen one is useless.</td><td>A key that only works if you also present your fingerprint.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 11 — NOT ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">10</span>
+    <h2>Three Things OAuth Is <em>Not</em></h2>
+  </div>
+
+  <div class="cols cols-3" style="margin-top:0.4em;">
+    <div class="card red">
+      <h3 class="r">1. Not authentication, on its own</h3>
+      <p>An access token says <em>"this app may call this API"</em>, not <em>"this is Alice"</em>. If you build a "log in" feature using just an OAuth access token, you've built a bug — the user has no proven identity inside your system. <span class="g">OpenID Connect</span> is what adds identity (an ID token) on top.</p>
+    </div>
+    <div class="card red">
+      <h3 class="r">2. Not encryption</h3>
+      <p>OAuth doesn't encrypt your data or your tokens — TLS does. OAuth assumes the channel is already secure. Run everything over HTTPS, end of story. Tokens travel in clear over an encrypted pipe.</p>
+    </div>
+    <div class="card red">
+      <h3 class="r">3. Not a single protocol</h3>
+      <p>OAuth is a <em>framework</em> with several flows (browser, mobile, TV, server-to-server) and many optional extensions. There is no single "OAuth library" you bolt on; pick the right flow for your situation. Part 1 walks you through that choice.</p>
+    </div>
+  </div>
+
+  <div class="card amber" style="margin-top:0.5em;">
+    <h3 class="a">A useful summary</h3>
+    <p>OAuth is the <strong>plumbing for delegation</strong>: handing an app a limited, expiring, revocable, audit-able permission to act on your behalf. Anything beyond that — login, encryption, governance, MFA, single sign-on — is a different problem that often <em>uses</em> OAuth as one ingredient.</p>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 12 — IN THE WILD ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">11</span>
+    <h2>Where You've Already Met OAuth</h2>
+  </div>
+  <p>OAuth runs more of your day than you realise.</p>
+
+  <div class="cols cols-2" style="margin-top:0.4em;">
+    <div>
+      <div class="card amber">
+        <h3 class="a">Login buttons</h3>
+        <ul>
+          <li>"Sign in with Google / Microsoft / Apple / GitHub" — every one is OAuth + OpenID Connect.</li>
+          <li>Your work SSO ("Sign in with Okta", "Continue with Microsoft 365") — same.</li>
+        </ul>
+      </div>
+      <div class="card green" style="margin-top:0.4em;">
+        <h3 class="g">"Connect your account" experiences</h3>
+        <ul>
+          <li>Connecting your bank to a budgeting app — that consent screen is OAuth.</li>
+          <li>A scheduling tool reading your Google Calendar.</li>
+          <li>A photo-printing site pulling your Instagram or iCloud photos.</li>
+        </ul>
+      </div>
+      <div class="card purple" style="margin-top:0.4em;">
+        <h3 class="p">CLIs and terminals</h3>
+        <ul>
+          <li><code>gh auth login</code>, <code>gcloud auth login</code>, <code>az login</code> — open a browser, you click Allow, the CLI gets a token.</li>
+          <li>Smart-TV logins ("go to acme.com/tv and enter ABCD") use the same family of flows.</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card blue">
+        <h3 class="b">Mobile apps</h3>
+        <ul>
+          <li>Every modern mobile app that talks to a SaaS uses OAuth — it is what gets the token onto your phone without anyone typing a corporate password into a third-party app.</li>
+        </ul>
+      </div>
+      <div class="card amber" style="margin-top:0.4em;">
+        <h3 class="a">APIs you call from code</h3>
+        <ul>
+          <li>Stripe webhooks, Slack bots, GitHub Actions reaching out to other services — most use OAuth tokens (issued either to a user or to the application itself).</li>
+        </ul>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">And — newly — AI agents</h3>
+        <ul>
+          <li>Remote MCP servers (the standard way LLM apps talk to outside tools) authenticate with OAuth.</li>
+          <li>That's why we have Part 2 of this series.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 13 — THE MCP TEASER ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">12</span>
+    <h2>The MCP Angle — Why This Is Suddenly Topical Again</h2>
+  </div>
+
+  <div class="cols cols-2">
+    <div>
+      <div class="card amber">
+        <h3 class="a">What's MCP, in one paragraph</h3>
+        <p>The <span class="g">Model Context Protocol</span> (Anthropic, 2024) is an open standard that lets LLM apps — Claude Desktop, Cursor, claude.ai, Goose, custom agents — call <em>tools</em> and read <em>resources</em> in a uniform way. Think "USB-C for AI integrations".</p>
+      </div>
+      <div class="card green" style="margin-top:0.4em;">
+        <h3 class="g">Why OAuth shows up</h3>
+        <ul>
+          <li>Many useful MCP servers don't run on your laptop — they live on the public internet (a Slack server, a Jira server, a GitHub server).</li>
+          <li>Letting an AI agent take any action on your behalf at one of those services <em>is exactly the OAuth problem</em>: scoped, expiring, revocable delegation.</li>
+          <li>The MCP standard adopts OAuth as its mandated way to do this.</li>
+        </ul>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">The three things to know going in</h3>
+        <ol style="padding-left:1.2em;">
+          <li>Every remote MCP server speaks OAuth, the same way every "Sign in with Google" button does.</li>
+          <li>Tools like the <span class="a">Docker MCP Gateway</span> run that OAuth dance once, locally, on your behalf — so you don't have to log in inside every chat app.</li>
+          <li>You'll see real provider names — Auth0, Microsoft Entra, Keycloak, ZITADEL — just like you'd see "Visa / Mastercard" if we were talking about payments.</li>
+        </ol>
+      </div>
+      <div class="card blue" style="margin-top:0.4em;">
+        <h3 class="b">If you remember one line</h3>
+        <p>Remote MCP didn't invent any new authorisation idea — it picks the modern OAuth defaults and pins them. <em>If you understand OAuth, you understand MCP auth.</em></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 14 — SELF CHECK ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">13</span>
+    <h2>Self-Check — Three Quick Questions</h2>
+  </div>
+
+  <div class="cols cols-2">
+    <div>
+      <div class="card amber">
+        <h3 class="a">Q1.</h3>
+        <p><em>You give "PhotoPrint" your Flickr password. Why is that <span class="r">not</span> what OAuth does?</em></p>
+        <div class="card green" style="margin-top:0.3em;">
+          <p><strong>Because OAuth never shares the password.</strong> The app is sent to Flickr's auth server, you log in there, you click Allow, and the app gets a <em>token</em> instead. The password stays with you and Flickr.</p>
+        </div>
+      </div>
+      <div class="card amber" style="margin-top:0.5em;">
+        <h3 class="a">Q2.</h3>
+        <p><em>An access token says "this client can call this API". Can you use it as proof of <span class="r">who the user is</span> in your app?</em></p>
+        <div class="card green" style="margin-top:0.3em;">
+          <p><strong>No.</strong> An access token is permission, not identity. For identity, use the <em>ID token</em> from OpenID Connect. Conflating them is the most common OAuth bug in the wild.</p>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card amber">
+        <h3 class="a">Q3.</h3>
+        <p><em>Why are access tokens short-lived (5–60 min) when refresh tokens last for days or months?</em></p>
+        <div class="card green" style="margin-top:0.3em;">
+          <p><strong>Damage limitation.</strong> The access token travels widely (every API call) so it's the most likely to leak — keep its lifetime short. The refresh token only ever talks to the auth server, over a strictly-controlled channel, so it can be longer-lived. Together you get convenience (no constant re-login) <em>and</em> a small breach window.</p>
+        </div>
+      </div>
+      <div class="card blue" style="margin-top:0.4em;">
+        <h3 class="b">If you got all three…</h3>
+        <p>You have the right mental model. Part 1 will turn it into the actual protocol; Part 2 will apply it to MCP servers and the provider landscape.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 15 — ROADMAP ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">14</span>
+    <h2>Reading Roadmap</h2>
+  </div>
+
+  <div class="cols cols-3">
+    <div class="card amber">
+      <h3 class="a">Part 0 — You are here</h3>
+      <ul>
+        <li>The mental model</li>
+        <li>The vocabulary</li>
+        <li>What OAuth is and isn't</li>
+        <li>Why MCP cares about it</li>
+      </ul>
+      <p style="margin-top:.3em;">Aimed at: anyone new to delegated auth, including non-developers.</p>
+    </div>
+    <div class="card green">
+      <h3 class="g">Part 1 — Introduction to OAuth</h3>
+      <ul>
+        <li>The full history (OAuth 1.0a → 2.0 → 2.1)</li>
+        <li>Every grant type, with diagrams</li>
+        <li>Authorization Code + PKCE in depth</li>
+        <li>OpenID Connect, JWTs, DPoP</li>
+        <li>Common attacks &amp; defences</li>
+        <li>Choosing a flow &amp; a library</li>
+      </ul>
+      <p style="margin-top:.3em;">Aimed at: developers building or integrating an OAuth client / server.</p>
+    </div>
+    <div class="card purple">
+      <h3 class="p">Part 2 — OAuth for MCP &amp; Providers</h3>
+      <ul>
+        <li>The MCP authorisation profile</li>
+        <li>Resource Indicators &amp; audience binding</li>
+        <li>Discovery, Dynamic Client Registration</li>
+        <li>The Docker MCP Gateway</li>
+        <li>Commercial providers: Auth0, Entra, Cognito, Stytch, WorkOS, Clerk, Descope, FusionAuth</li>
+        <li>Open-source providers: Keycloak, ZITADEL, Authentik, Ory Hydra, Authelia, Logto, SuperTokens</li>
+        <li>Production checklist</li>
+      </ul>
+      <p style="margin-top:.3em;">Aimed at: anyone shipping or operating remote MCP servers.</p>
+    </div>
+  </div>
+
+  <div class="card blue" style="margin-top:0.4em;">
+    <h3 class="b">Recommended order</h3>
+    <p>Part 0 (this deck, ~15 min) → Part 1 (full protocol, ~45 min) → Part 2 (MCP &amp; providers, ~45 min). If you already write OAuth code, skip straight to Part 2 and use Part 1 as reference.</p>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════ SLIDE 16 — SUMMARY ═══════════════════════════════ -->
+<section data-background-color="#0a0a0f">
+  <div class="slide-hdr">
+    <span class="tag">15</span>
+    <h2>Summary — Three Sentences You Can Screenshot</h2>
+  </div>
+
+  <div class="cols cols-2">
+    <div>
+      <div class="card amber">
+        <h3 class="a">If you remember three things</h3>
+        <ol style="padding-left:1.2em;">
+          <li><span class="g">OAuth is delegation, not login.</span> It hands an app a limited, expiring, revocable permission to act on your behalf at another service.</li>
+          <li><span class="g">A token is a digital wristband.</span> Short-lived, scope-limited, audience-bound. Treat it like cash.</li>
+          <li><span class="g">"Sign in with X" = OAuth + a thin identity layer (OpenID Connect).</span> Same machinery; one extra slip of paper that says who you are.</li>
+        </ol>
+      </div>
+      <div class="card green" style="margin-top:0.4em;">
+        <h3 class="g">The five-step rhythm</h3>
+        <p>Ask &nbsp;→&nbsp; Authenticate &nbsp;→&nbsp; Consent &nbsp;→&nbsp; Token &nbsp;→&nbsp; Use. Every flow you'll ever meet — browser, mobile, TV, MCP server — is a variation on those five beats.</p>
+      </div>
+    </div>
+    <div>
+      <div class="card purple">
+        <h3 class="p">What you just learned the words for</h3>
+        <p>Resource owner · client · authorization server · resource server · scope · audience · access token · refresh token · ID token · consent · grant / flow · bearer token · PKCE · OpenID Connect · DPoP / mTLS.</p>
+        <p style="margin-top:.3em;">Every one of those will reappear in Part 1 with the full technical treatment.</p>
+      </div>
+      <div class="card blue" style="margin-top:0.4em;">
+        <h3 class="b">Where to go next</h3>
+        <p><span class="a">Part 1 — Introduction to OAuth</span> for the protocol; <span class="a">Part 2 — OAuth for MCP Servers &amp; the Provider Landscape</span> for the AI-agent and provider angle.</p>
+      </div>
+      <div class="card red" style="margin-top:0.4em;">
+        <h3 class="r">One-line takeaway</h3>
+        <p>OAuth is the polite way to lend your account to someone else's app — for a little while, for a specific purpose, with the right to take it back.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+</div><!-- /.slides -->
+</div><!-- /.reveal -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/reveal.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.6.1/plugin/highlight/highlight.min.js"></script>
+<script>
+Reveal.initialize({
+  hash: true,
+  slideNumber: 'c/t',
+  transition: 'fade',
+  transitionSpeed: 'fast',
+  controls: true,
+  progress: true,
+  center: false,
+  width: 1100,
+  height: 900,
+  margin: 0.01,
+  plugins: [RevealHighlight],
+  highlight: { theme: 'monokai' }
+});
+</script>
+<script>
+(function(){
+  var h = Reveal.getConfig().height || 900;
+  var m = Reveal.getConfig().margin || 0.02;
+  var maxH = Math.floor(h * (1 - 2 * m)) + 'px';
+  function fixSlides(){
+    document.querySelectorAll('.reveal .slides>section,.reveal .slides>section>section').forEach(function(s){
+      s.style.display = 'block';
+      s.style.maxHeight = maxH;
+    });
+  }
+  Reveal.on('ready', fixSlides);
+  Reveal.on('slidechanged', fixSlides);
+})();
+</script>
+</body>
+</html>
